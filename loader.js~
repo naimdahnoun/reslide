@@ -1,0 +1,291 @@
+var curr_slide_idx = 0;
+var rect_in_progress = {x1:0,y1:0,x2:0,y2:0};
+var rects = [];
+
+var ns = 'http://www.w3.org/2000/svg';
+var curr_user = "" + Math.floor((Math.random()*999998)+1);
+var refresh_id = null;
+
+function next_slide(evt){
+    console.log("Next!");
+    var curr_slide = document.getElementById("slide_"+curr_slide_idx);
+    var next_slide = document.getElementById("slide_"+(curr_slide_idx+1));
+    if(next_slide != null){	
+	curr_slide.style.display = "none";
+	next_slide.style.display = "initial";
+	curr_slide_idx++;
+	clear_rects();
+	get_rects();
+    }
+    else {
+	console.log("No Next!");
+    }
+}
+
+function prev_slide(evt){
+    console.log("Previous!");
+    var curr_slide = document.getElementById("slide_"+curr_slide_idx);
+    var next_slide = document.getElementById("slide_"+(curr_slide_idx-1));
+    if(next_slide != null){
+	curr_slide.style.display = "none";
+	next_slide.style.display = "initial";
+	curr_slide_idx--;
+	clear_rects();
+	get_rects();
+    }
+    else {
+	console.log("No Previous!");
+    }
+}
+
+
+function set_user(evt){
+    console.log("user change");
+    var user = document.getElementById("user");
+    if(user.value == curr_user){
+	console.log("user stays at " + curr_user);
+    }
+    else if(user.value == "0"){
+	refresh_id = setInterval(function() {clear_rects(); get_rects()}, 5000);
+    }
+    else if(curr_user == "0"){
+	clearInterval(refresh_id);	
+    }
+    curr_user = user.value;
+    clear_rects();
+    get_rects();
+    
+}
+
+
+function clear_rects(){
+    var svg = document.getElementById('drawing-svg');
+    for(var i = 0; i < rects.length; i++){
+	svg.removeChild(rects[i]);
+    }
+    rects = [];
+}
+
+function get_rects(){
+    var xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function() {
+	if(this.readyState == 4 && this.status == 200){
+	    if(this.responseText == "Failure"){
+		console.log("Error in parameters of file doesn't exist");
+	    }
+	    else{
+		console.log(this.responseText);
+		var new_rects = this.responseText.split("\n");
+		for(var i = 0; i < new_rects.length; i++){
+		    if(new_rects[i].length != 0){
+			new_rects[i] = new_rects[i].split(" ");
+			rect_in_progress.x1 = parseInt(new_rects[i][0]);
+			rect_in_progress.y1 = parseInt(new_rects[i][1]);
+			rect_in_progress.x2 = parseInt(new_rects[i][2]);
+			rect_in_progress.y2 = parseInt(new_rects[i][3]);
+			draw_rect();
+			rects[rects.length-1].addEventListener("contextmenu", destroy_rect);
+		    }
+		}
+		rect_in_progress = {x1:0, y1:0, x2:0, y2:0};
+	    }
+	}
+    }
+    var url = "retrieve_rects.php/?user="+curr_user+"&slide="+curr_slide_idx;
+    xhttp.open("GET", url, true);
+    xhttp.send();
+}
+
+function continue_drawing(evt) {
+    rect_in_progress.x2 = evt.pageX;
+    rect_in_progress.y2 = evt.pageY;
+    redraw_rect();
+}
+
+function finish_drawing(evt) {
+    if(evt.which == 1) {
+	rect_in_progress.x2 = evt.pageX;
+	rect_in_progress.y2 = evt.pageY;
+	redraw_rect();
+	var svg = document.getElementById("drawing-svg");
+	svg.removeEventListener("mousemove", continue_drawing);
+	svg.removeEventListener("mouseup", finish_drawing);
+	svg.removeEventListener("mouseenter", snap_drawing);
+	var rip = rect_in_progress;
+	if(rip.x1 == rip.x2 || rip.y1 == rip.y2){
+	    svg.removeChild(rects[rects.length-1]);
+	    rects.splice(rects.length-1, 1);
+	}
+	else{
+	    var xhttp  = new XMLHttpRequest();
+	    xhttp.onreadystatechange = function() {
+		if(this.readyState == 4 && this.status == 200){
+		    if(this.responseText == "Success"){
+			console.log("Submission success");
+		    }
+		    else{
+			console.log("Submission failure");
+		    }
+		}
+	    };
+	    var rip = rect_in_progress;
+	    var url = "submit_rect.php/?user="+curr_user+"&slide="+curr_slide_idx+"&x1="+rip.x1+"&y1="+rip.y1+"&x2="+rip.x2+"&y2="+rip.y2;
+	    xhttp.open("GET", url, true);
+	    xhttp.send();
+	}
+	rect_in_progress = {x1:0, y1:0, x2:0, y2:0};
+    }
+}
+
+function snap_drawing(evt) {
+    rect_in_progress.x2 = evt.pageX;
+    rect_in_progress.y2 = evt.pageY;
+    redraw_rect();
+}
+
+function draw_rect() {
+    //var elem = document.createElement("SVG");
+    //var child_rect = document.createElement("RECT");
+    //child_rect.x = "" + rect_in_progress.x1 + "";
+    //child_rect.y = "" + rect_in_progress.y1 + "";
+    //child_rect.width = "" + (rect_in_progress.x2 - rect_in_progress.x1) + "";
+    //child_rect.height = "" + (rect_in_progress.y2 - rect_in_progress.y1) + "";
+    //elem.appendChild(child_rect);
+    //rects.push(elem);
+    //document.body.appendChild(elem);
+    var svg = document.getElementById('drawing-svg');
+    var rect = document.createElementNS(ns, 'rect');
+    var svgrect = svg.getBoundingClientRect();
+    rect.setAttributeNS(null, 'width', (rect_in_progress.x2 - rect_in_progress.x1));
+    rect.setAttributeNS(null, 'height', (rect_in_progress.y2 - rect_in_progress.y1));
+    rect.setAttributeNS(null, 'x', rect_in_progress.x1-svgrect.left);
+    rect.setAttributeNS(null, 'y', rect_in_progress.y1-svgrect.top);
+    rect.setAttributeNS(null, 'fill', '#FF0000');
+    rect.setAttributeNS(null, 'opacity', '0.3');
+    rect.setAttributeNS(null, 'style', 'z-index:20;position:absolute');
+    svg.appendChild(rect);
+    rects.push(rect);
+}
+
+function redraw_rect() {
+    //var elem = rects[rects.length-1];
+    //var child_rect = elem.children[0];
+    //child_rect.width = "" + (rect_in_progress.x2 - rect_in_progress.x1) + "";
+    //child_rect.height = "" + (rect_in_progress.y2 - rect_in_progress.y1) + "";
+    var rect = rects[rects.length-1];
+    //var rect = svg.children[0];
+    rect.setAttributeNS(null, 'width', (rect_in_progress.x2 - rect_in_progress.x1));
+    rect.setAttributeNS(null, 'height', (rect_in_progress.y2 - rect_in_progress.y1));
+}
+
+function destroy_rect(evt) {
+    console.log("Destroy");
+    var rect = evt.currentTarget;
+    //var elem = rect.parentNode;
+    var idx = rects.indexOf(rect);
+    if(idx != -1) {
+	rects.splice(idx, 1);
+    }
+    else{
+	console.log("Error: couldn't find rect in array!");
+    }
+    rect.parentNode.removeChild(rect);
+    return false;
+}
+
+function start_drawing(evt) {
+    if(evt.which == 1){
+	rect_in_progress.x1 = evt.pageX;
+	rect_in_progress.y1 = evt.pageY;
+	rect_in_progress.x2 = evt.pageX;
+	rect_in_progress.y2 = evt.pageY;
+	var svg = document.getElementById("drawing-svg");
+	svg.addEventListener("mousemove", continue_drawing);
+	svg.addEventListener("mouseup", finish_drawing);
+	svg.addEventListener("mouseenter", snap_drawing);
+	draw_rect();
+	rects[rects.length-1].addEventListener("contextmenu", destroy_rect);
+    }
+}
+
+function myLoad(evt = null) {
+    console.log("myLoad");
+    var slideshow = document.getElementById("slideshow");
+    var xhttp = new XMLHttpRequest();
+    var loadslide = document.getElementById("loading");
+    var loadimg = document.getElementById("loadimg");
+    var rectSS = slideshow.getBoundingClientRect();
+    var rectBtn = document.getElementById("prev").getBoundingClientRect();
+    loadslide.style.height = "" + (window.innerHeight - rectSS.top - 2*rectBtn.height) + "px";
+    loadimg.style.height = "" + (window.innerHeight - rectSS.top - 2*rectBtn.height) + "px";
+    xhttp.onreadystatechange = function() {
+	console.log("onreadystatechange (" + this.readystate + "," + this.status + ")");
+	if(this.readyState == 4 && this.status == 200){
+	    console.log("=== Response text incoming ===");
+	    console.log(this.responseText);
+	    console.log("=== Response text finished ===");
+	    slideshow.innerHTML = this.responseText;
+	    var slide = document.getElementById("slide_0");
+	    var img = document.getElementById("img_0");
+	    var div = document.getElementById("drawing");
+	    var rectSS = slideshow.getBoundingClientRect();
+	    var i = 1;
+	    while(slide != null){
+		slide.style.height = "" + (window.innerHeight - rectSS.top - 2*rectBtn.height) + "px";
+		img.style.height = "" + (window.innerHeight - rectSS.top - 2*rectBtn.height) + "px";
+		img.ondragstart = function() { return false; };
+		slide = document.getElementById("slide_" + i);
+		img = document.getElementById("img_" + i);
+		i++;
+	    }
+	    var rectSS = slideshow.getBoundingClientRect();
+	    var svg = document.createElementNS(ns, 'svg');
+	    svg.setAttributeNS(null, 'width', '100%');
+	    svg.setAttributeNS(null, 'height', '100%');
+	    svg.setAttributeNS(null, 'style', 'z-index:10; position:absolute;');
+	    svg.setAttributeNS(null, 'id', 'drawing-svg');
+	    svg.addEventListener("mousedown", start_drawing);
+	    div.appendChild(svg);
+	    div.style.width = "" + (rectSS.width) + "px";
+	    console.log("rectSS.height: "+rectSS.height);
+	    div.style.height = "" + (rectSS.height) + "px";
+	    get_rects();
+	}
+    };
+    xhttp.open("GET", "slides.php", true);
+    xhttp.send();
+    var next_btn = document.getElementById("next");
+    var prev_btn = document.getElementById("prev");
+    var user_btn = document.getElementById("user_submit");
+    if(next_btn == null){
+	console.log("#next is null");
+    }
+    if(prev_btn == null){
+	console.log("#prev is null");
+    }
+    if(user_btn == null){
+	console.log("#user_submit is null");
+    }
+    next_btn.addEventListener("click", next_slide);
+    prev_btn.addEventListener("click", prev_slide);
+    user_btn.addEventListener("click", set_user);
+    var user = document.getElementById("user");
+    user.value = curr_user;
+}
+
+console.log("START!!!");
+
+if(window.attachEvent) {
+    window.attachEvent('onload', myLoad);
+} else if(window.onload) {
+    var curronload = window.onload;
+    var newonload = function(evt) {
+	curronload(evt);
+	myLoad(evt);
+    };
+    window.onload = newonload;
+} else {
+    window.onload = myLoad;
+}
+
+

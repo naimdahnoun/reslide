@@ -1,0 +1,21 @@
+<html>
+  <head>
+    <title>
+      A web page
+    </title>
+    <script src="loader.js"></script>
+  </head>
+  <body>
+    <h1>
+      ReSlide
+    </h1>
+    <div style="position:absolute;width:100%;height:100%;" id="drawing"></div>
+    <ul id="slideshow" style="list-style:none;">
+      <li id="loading" style="display:initial;width:50%"><img id="loadimg" src="the_smile.jpg" alt="loading slides" />
+    </ul>
+    <button id="prev">Previous</button>
+    <button id="next">Next</button>
+    <input id="user" type="text" placeholder="user id" />
+    <button id="user_submit">Change User</button>
+  </body>
+</html>

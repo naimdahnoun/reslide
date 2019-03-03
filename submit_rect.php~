@@ -1,0 +1,25 @@
+<?php
+$user = $_GET["user"];
+$x1 = $_GET["x1"];
+$y1 = $_GET["y1"];
+$x2 = $_GET["x2"];
+$y2 = $_GET["y2"];
+$slide = $_GET["slide"];
+$filtered_user = preg_replace("/[^a-zA-Z0-9]+/", "", $user);
+$filtered_slide = preg_replace("/[^0-9]+/", "", $slide);
+$filtered_x1 = preg_replace("/[^0-9]+/", "", $x1);
+$filtered_y1 = preg_replace("/[^0-9]+/", "", $y1);
+$filtered_x2 = preg_replace("/[^0-9]+/", "", $x2);
+$filtered_y2 = preg_replace("/[^0-9]+/", "", $y2);
+$valid = $filtered_user === $user && $filtered_slide === $slide && $filtered_x1 === $x1 && $filtered_y1 === $y1 && $filtered_x2 === $x2 && $filtered_y2 === $y2;
+if($valid){
+    $filename = "user/".$user."_".$slide.".rects";
+    $file = fopen($filename, "a");
+    fwrite($file, $x1 . " " . $y1 . " " . $x2 . " " . $y2 . "\n");
+    fclose($file);
+    echo("Success");
+}
+else {
+    echo("Failure");
+}
+?>
